@@ -3,6 +3,7 @@ package ec.edu.puce.githubclient.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ec.edu.puce.githubclient.models.Repository
+import ec.edu.puce.githubclient.models.RepositoryPayload
 import ec.edu.puce.githubclient.services.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -10,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class RepoListViewModel : ViewModel() {
+
+    private val username = "matezepam"
 
     private val _repos = MutableStateFlow<List<Repository>>(emptyList())
     val repos: StateFlow<List<Repository>> = _repos.asStateFlow()
@@ -25,26 +28,48 @@ class RepoListViewModel : ViewModel() {
     }
 
     fun fetchRepos() {
-
         viewModelScope.launch {
-
             _isLoading.value = true
             _errorMsg.value = null
 
             try {
+                _repos.value = RetrofitClient.apiService.getRepositories(username)
+            } catch (e: Exception) {
+                _errorMsg.value = "Error al cargar repositorios: ${e.localizedMessage}"
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
-                _repos.value =
-                    RetrofitClient.apiService.getRepositories("matezepam")
+    fun createRepo(
+        name: String,
+        description: String,
+        isPrivate: Boolean,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMsg.value = null
+
+            try {
+                val repositoryPayload = RepositoryPayload(
+                    name = name,
+                    description = description,
+                    isPrivate = isPrivate
+                )
+
+                RetrofitClient.apiService.createRepository(repositoryPayload)
+
+                fetchRepos()
+
+                onSuccess()
 
             } catch (e: Exception) {
-
-                _errorMsg.value =
-                    "Error al cargar repositorios: ${e.localizedMessage}"
-
+                _errorMsg.value = "Error al crear repositorio: ${e.localizedMessage}"
                 e.printStackTrace()
-
             } finally {
-
                 _isLoading.value = false
             }
         }
