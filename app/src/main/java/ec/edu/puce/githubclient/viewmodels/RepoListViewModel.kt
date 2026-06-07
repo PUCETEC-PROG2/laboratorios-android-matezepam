@@ -23,6 +23,9 @@ class RepoListViewModel : ViewModel() {
     private val _errorMsg = MutableStateFlow<String?>(null)
     val errorMsg = _errorMsg.asStateFlow()
 
+    private val _successMsg = MutableStateFlow<String?>(null)
+    val successMsg = _successMsg.asStateFlow()
+
     init {
         fetchRepos()
     }
@@ -31,9 +34,10 @@ class RepoListViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMsg.value = null
+            _successMsg.value = null
 
             try {
-                _repos.value = RetrofitClient.apiService.getRepositories(username)
+                _repos.value = RetrofitClient.apiService.getRepositories()
             } catch (e: Exception) {
                 _errorMsg.value = "Error al cargar repositorios: ${e.localizedMessage}"
                 e.printStackTrace()
@@ -52,6 +56,7 @@ class RepoListViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMsg.value = null
+            _successMsg.value = null
 
             try {
                 val repositoryPayload = RepositoryPayload(
@@ -62,7 +67,9 @@ class RepoListViewModel : ViewModel() {
 
                 RetrofitClient.apiService.createRepository(repositoryPayload)
 
-                fetchRepos()
+                _repos.value = RetrofitClient.apiService.getRepositories()
+
+                _successMsg.value = "Repositorio creado correctamente"
 
                 onSuccess()
 
@@ -73,5 +80,81 @@ class RepoListViewModel : ViewModel() {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun updateRepo(
+        oldName: String,
+        newName: String,
+        newDescription: String
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMsg.value = null
+            _successMsg.value = null
+
+            try {
+                val repositoryPayload = RepositoryPayload(
+                    name = newName,
+                    description = newDescription
+                )
+
+                val updatedRepository = RetrofitClient.apiService.updateRepository(
+                    owner = username,
+                    repo = oldName,
+                    repositoryPayload = repositoryPayload
+                )
+
+                _repos.value = _repos.value.map { repository ->
+                    if (repository.name == oldName) {
+                        updatedRepository
+                    } else {
+                        repository
+                    }
+                }
+
+                _successMsg.value = "Repositorio actualizado correctamente"
+
+            } catch (e: Exception) {
+                _errorMsg.value = "Error al actualizar repositorio: ${e.localizedMessage}"
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteRepo(repoName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMsg.value = null
+            _successMsg.value = null
+
+            try {
+                val response = RetrofitClient.apiService.deleteRepository(
+                    owner = username,
+                    repo = repoName
+                )
+
+                if (response.isSuccessful) {
+                    _repos.value = _repos.value.filter { repository ->
+                        repository.name != repoName
+                    }
+
+                    _successMsg.value = "Repositorio eliminado correctamente"
+                } else {
+                    _errorMsg.value = "Error al eliminar repositorio. Código: ${response.code()}"
+                }
+
+            } catch (e: Exception) {
+                _errorMsg.value = "Error al eliminar repositorio: ${e.localizedMessage}"
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun clearSuccessMessage() {
+        _successMsg.value = null
     }
 }

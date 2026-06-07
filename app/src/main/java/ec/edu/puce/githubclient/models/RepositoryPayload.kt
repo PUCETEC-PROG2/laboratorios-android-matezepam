@@ -3,9 +3,9 @@ package ec.edu.puce.githubclient.models
 import com.google.gson.annotations.SerializedName
 
 data class RepositoryPayload(
-    val name: String,
-    val description: String,
+    val name: String? = null,
+    val description: String? = null,
 
     @SerializedName("private")
-    val isPrivate: Boolean
+    val isPrivate: Boolean? = null
 )
